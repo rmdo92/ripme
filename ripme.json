@@ -1,6 +1,13 @@
 {
-    "latestVersion": "1.7.85",
+    "currentHash": "e0d946933c0a89da03e9a5a00420a87dd8c2fc23eae01e1a2fb8390eceb9b868",
     "changeList": [
+        "1.7.92: Added read-comic.com ripper; Fix Pawoo ripper; Add ChineseSimplified language file; Fixed artstation ripper",
+        "1.7.91: Fixed luscious ripper. Fixed VK ripper; Added Kingcomix ripper",
+        "1.7.90: Added FitnakedgirlsRipper; Fixed VK Album Ripper; Fixed Myreadingmanga Ripper; Fixed windows max file name; Fixed Pornhub Video Ripper; Fixed Motherless Ripper; Fixed Instagram Ripper",
+        "1.7.89:  Improved twitter ripper; Fixed xhamster image ripper; Fixed allporncomic ripper; Added Ripper for folio.ink",
+        "1.7.88:  Added ripper for Myreadingmanga.info; Added Mastodon rippers; Fix queue count update when queue is 0; Added ripper for listal; Now downloads best video when ripping twitter",
+        "1.7.87: Added ripper for allporncomic.com; Fixed Xhamster ripper; Added support xhamster2.com and xhamster.desi; Fixes for gfycat thumbs urls",
+        "1.7.86: Added Meituri Ripper; fixed -u flag; Fixed pornhub ripper; Xhamster ripper can now queue users videos",
         "1.7.85: Fixed instagram ripper; Flickr ripper now downloads largest image",
         "1.7.84: Fixed instagram ripper; xhamster ripper now accepts urls with page numbers; Fixed Deviantart Ripper",
         "1.7.83: Added a ripper for hentaifox.com; Added ripper for Erofus.com; Fixed fsktr not ripping some images; Added support for Gfycat profiles; Added opt to disable prefix for HentaifoundryRipper ",
@@ -257,5 +264,5 @@
         "1.0.3: Added VK.com ripper",
         "1.0.1: Added auto-update functionality"
     ],
-    "currentHash": "874aceffdad02ab8147b588641229a9743b8e78b3681b3ff5a733cbd2faa9009"
+    "latestVersion": "1.7.92"
 }

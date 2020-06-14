@@ -3,19 +3,24 @@ package com.rarchives.ripme.ripper.rippers;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
-import com.rarchives.ripme.ripper.AlbumRipper;
+import com.rarchives.ripme.ripper.AbstractHTMLRipper;
 import com.rarchives.ripme.ripper.DownloadThreadPool;
 import com.rarchives.ripme.ui.RipStatusMessage.STATUS;
 import com.rarchives.ripme.utils.Http;
 import com.rarchives.ripme.utils.Utils;
+import org.jsoup.select.Elements;
 
-public class MotherlessRipper extends AlbumRipper {
+public class MotherlessRipper extends AbstractHTMLRipper {
+    // All sleep times are in milliseconds
+    private static final int IMAGE_SLEEP_TIME    = 1000;
 
     private static final String DOMAIN = "motherless.com",
                                 HOST   = "motherless";
@@ -35,6 +40,82 @@ public class MotherlessRipper extends AlbumRipper {
             return false;
         }
         return url.getHost().endsWith(DOMAIN);
+    }
+
+    @Override
+    protected String getDomain() {
+        return DOMAIN;
+    }
+
+    @Override
+    protected Document getFirstPage() throws IOException {
+        URL firstURL = this.url;
+        String path = this.url.getPath();
+        // Check if "All Uploads" (/GMxxxx), Image (/GIxxxx) or Video (/GVxxxx) gallery since there's no "next" after the homepage (/Gxxxx)
+        Pattern p = Pattern.compile("[MIV]");
+        Matcher m = p.matcher(String.valueOf(path.charAt(2)));
+        boolean notHome = m.matches();
+        // If it's the homepage go to the "All Uploads" gallery (/Gxxxxx -> /GMxxxxx)
+        if (!notHome) {
+            StringBuilder newPath = new StringBuilder(path);
+            newPath.insert(2, "M");
+            firstURL = new URL(this.url, "https://" + DOMAIN + newPath);
+            LOGGER.info("Changed URL to " + firstURL);
+        }
+        return Http.url(firstURL).referrer("https://motherless.com").get();
+    }
+
+    @Override
+    public Document getNextPage(Document doc) throws IOException {
+        Elements nextPageLink = doc.head().select("link[rel=next]");
+        if (nextPageLink.isEmpty()) {
+            throw new IOException("Last page reached");
+        } else {
+            String referrerLink = doc.head().select("link[rel=canonical]").first().attr("href");
+            URL nextURL = new URL(this.url, nextPageLink.first().attr("href"));
+            return Http.url(nextURL).referrer(referrerLink).get();
+        }
+    }
+
+    @Override
+    protected List<String> getURLsFromPage(Document page) {
+        List<String> pageURLs = new ArrayList<>();
+
+        for (Element thumb : page.select("div.thumb-container a.img-container")) {
+            if (isStopped()) {
+                break;
+            }
+            String thumbURL = thumb.attr("href");
+            if (thumbURL.contains("pornmd.com")) {
+                continue;
+            }
+
+            String url;
+            if (!thumbURL.startsWith("http")) {
+                url = "https://" + DOMAIN + thumbURL;
+            } else {
+                url = thumbURL;
+            }
+            pageURLs.add(url);
+
+            if (isThisATest()) {
+                break;
+            }
+        }
+
+        return pageURLs;
+    }
+
+    @Override
+    protected void downloadURL(URL url, int index) {
+        // Create thread for finding image at "url" page
+        MotherlessImageThread mit = new MotherlessImageThread(url, index);
+        motherlessThreadPool.addThread(mit);
+        try {
+            Thread.sleep(IMAGE_SLEEP_TIME);
+        } catch (InterruptedException e) {
+            LOGGER.warn("Interrupted while waiting to load next image", e);
+        }
     }
 
     @Override
@@ -64,60 +145,9 @@ public class MotherlessRipper extends AlbumRipper {
         if (m.matches()) {
             return m.group(m.groupCount());
         }
-        throw new MalformedURLException("Expected URL format: http://motherless.com/GIXXXXXXX, got: " + url);
+        throw new MalformedURLException("Expected URL format: https://motherless.com/GIXXXXXXX, got: " + url);
     }
 
-    @Override
-    public void rip() throws IOException {
-        int index = 0, page = 1;
-        String nextURL = this.url.toExternalForm();
-        while (nextURL != null) {
-            if (isStopped()) {
-                break;
-            }
-            LOGGER.info("Retrieving " + nextURL);
-            sendUpdate(STATUS.LOADING_RESOURCE, nextURL);
-            Document doc = Http.url(nextURL)
-                               .referrer("http://motherless.com")
-                               .get();
-            for (Element thumb : doc.select("div.thumb a.img-container")) {
-                if (isStopped()) {
-                    break;
-                }
-                String thumbURL = thumb.attr("href");
-                if (thumbURL.contains("pornmd.com")) {
-                    continue;
-                }
-                URL url;
-                if (!thumbURL.startsWith("http")) {
-                    url = new URL("http://" + DOMAIN + thumbURL);
-                }
-                else {
-                    url = new URL(thumbURL);
-                }
-                index += 1;
-
-                // Create thread for finding image at "url" page
-                MotherlessImageThread mit = new MotherlessImageThread(url, index);
-                motherlessThreadPool.addThread(mit);
-
-                if (isThisATest()) {
-                    break;
-                }
-            }
-            if (isThisATest()) {
-                break;
-            }
-            // Next page
-            nextURL = null;
-            page++;
-            if (doc.html().contains("?page=" + page)) {
-                nextURL = this.url.toExternalForm() + "?page=" + page;
-            }
-        }
-        motherlessThreadPool.waitForThreads();
-        waitForThreads();
-    }
 
     /**
      * Helper class to find and download images found on "image" pages

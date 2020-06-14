@@ -25,11 +25,12 @@ public class GfycatRipper extends AbstractHTMLRipper {
     String username = "";
     String cursor = "";
     String count = "30";
+    String REFERRER = "www.reddit.com";
 
 
 
     public GfycatRipper(URL url) throws IOException {
-        super(url);
+        super(new URL(url.toExternalForm().split("-")[0].replace("thumbs.", "")));
     }
 
     @Override
@@ -49,10 +50,12 @@ public class GfycatRipper extends AbstractHTMLRipper {
 
     @Override
     public URL sanitizeURL(URL url) throws MalformedURLException {
-        url = new URL(url.toExternalForm().replace("/gifs/detail", ""));
-        
-        return url;
+        String sUrl = url.toExternalForm();
+        sUrl = sUrl.replace("/gifs/detail", "");
+        sUrl = sUrl.replace("/amp", "");
+        return new URL(sUrl);
     }
+
     public boolean isProfile() {
         Pattern p = Pattern.compile("^https?://[wm.]*gfycat\\.com/@([a-zA-Z0-9]+).*$");
         Matcher m = p.matcher(url.toExternalForm());
@@ -62,10 +65,10 @@ public class GfycatRipper extends AbstractHTMLRipper {
     @Override
     public Document getFirstPage() throws IOException {
         if (!isProfile()) {
-            return Http.url(url).get();
+            return Http.url(url).referrer(REFERRER).get();
         } else {
             username = getGID(url);
-            return Http.url(new URL("https://api.gfycat.com/v1/users/" +  username + "/gfycats")).ignoreContentType().get();
+            return Http.url(new URL("https://api.gfycat.com/v1/users/" +  username + "/gfycats")).referrer((REFERRER)).ignoreContentType().get();
         }
     }
 
@@ -76,15 +79,16 @@ public class GfycatRipper extends AbstractHTMLRipper {
 
     @Override
     public String getGID(URL url) throws MalformedURLException {
-        Pattern p = Pattern.compile("^https?://[wm.]*gfycat\\.com/@?([a-zA-Z0-9]+).*$");
+        Pattern p = Pattern.compile("^https?://(thumbs\\.|[wm\\.]*)gfycat\\.com/@?([a-zA-Z0-9]+).*$");
         Matcher m = p.matcher(url.toExternalForm());
-        if (m.matches()) {
-            return m.group(1);
-        }
-
+        
+        if (m.matches())
+            return m.group(2);
+        
         throw new MalformedURLException(
-                "Expected gfycat.com format:"
-                        + "gfycat.com/id"
+                "Expected gfycat.com format: "
+                        + "gfycat.com/id or "
+                        + "thumbs.gfycat.com/id.gif"
                         + " Got: " + url);
     }
 
@@ -92,7 +96,7 @@ public class GfycatRipper extends AbstractHTMLRipper {
         t = t.replaceAll("<html>\n" +
                 " <head></head>\n" +
                 " <body>", "");
-        t.replaceAll("</body>\n" +
+        t = t.replaceAll("</body>\n" +
                 "</html>", "");
         t = t.replaceAll("\n", "");
         t = t.replaceAll("=\"\"", "");
